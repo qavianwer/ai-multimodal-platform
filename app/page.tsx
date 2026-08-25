@@ -1,103 +1,168 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { AI_MODELS_ECOSYSTEM, AIModel } from '@/lib/ai-models';
+import { supabase } from '@/lib/supabase/client';
 
 export default function Dashboard() {
-  const [activeTab, setActiveTab] = useState('chat');
-  const [selectedModel, setSelectedModel] = useState('gpt-4o');
+  // Auth States
+  const [user, setUser] = useState<any>(null);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [authLoading, setAuthLoading] = useState(false);
+  const [message, setMessage] = useState('');
+
+  // Generator States
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedModel, setSelectedModel] = useState<string>('gpt-4o');
   const [prompt, setPrompt] = useState('');
   const [output, setOutput] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [generating, setGenerating] = useState(false);
 
-  const AI_MODELS_ECOSYSTEM = [
-    { slug: 'gpt-4o', name: 'GPT-4o', category: 'chat', provider: 'OpenAI' },
-    { slug: 'claude-3-5-sonnet', name: 'Claude 3.5 Sonnet', category: 'chat', provider: 'Anthropic' },
-    { slug: 'gemini-1-5-pro', name: 'Gemini 1.5 Pro', category: 'chat', provider: 'Google' },
-    { slug: 'grok-2', name: 'Grok 2', category: 'chat', provider: 'xAI' },
-    { slug: 'deepseek-chat', name: 'DeepSeek V3 / R1', category: 'chat', provider: 'DeepSeek' },
-    { slug: 'llama-3-70b', name: 'Llama 3.3 70B', category: 'openWeights', provider: 'Meta' },
-    { slug: 'flux-schnell', name: 'FLUX.1 Schnell/Dev', category: 'image', provider: 'BFL' },
-    { slug: 'stable-diffusion-3', name: 'Stable Diffusion 3', category: 'image', provider: 'Stability' },
-    { slug: 'midjourney-v6', name: 'Midjourney v6', category: 'image', provider: 'Midjourney' },
-    { slug: 'sora-cinematic', name: 'Sora Video', category: 'video', provider: 'OpenAI' },
-    { slug: 'veo-ultra', name: 'Veo Ultra', category: 'video', provider: 'Google' },
-    { slug: 'elevenlabs-voice', name: 'ElevenLabs Voice', category: 'voice', provider: 'ElevenLabs' }
-  ];
+  // Check Supabase Session
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+    });
 
-  const filteredModels = AI_MODELS_ECOSYSTEM.filter(m => m.category === activeTab);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
 
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthLoading(true);
+    setMessage('');
+    const { error } = await supabase.auth.signUp({ email, password });
+    if (error) setMessage(error.message);
+    else setMessage('Success! Check your email for the confirmation link.');
+    setAuthLoading(false);
+  };
+
+  const handleSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthLoading(true);
+    setMessage('');
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) setMessage(error.message);
+    else setMessage('Successfully logged in!');
+    setAuthLoading(false);
+  };
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    setMessage('Signed out successfully.');
+  };
+
+  // Filter models based on category tab
+  const filteredModels = selectedCategory === 'all' 
+    ? AI_MODELS_ECOSYSTEM 
+    : AI_MODELS_ECOSYSTEM.filter(m => m.category === selectedCategory);
+
+  // Handle AI Content Generation Simulation
   const handleGenerate = () => {
     if (!prompt.trim()) return;
-    setLoading(true);
+    setGenerating(true);
+    setOutput(null);
     setTimeout(() => {
-      setLoading(false);
-      setOutput(`Successfully generated output using model [${selectedModel}] for prompt: "${prompt}"`);
+      setGenerating(false);
+      setOutput(`🚀 Successfully generated output using [${selectedModel}] model.\nPrompt: "${prompt}"\nStatus: Pipeline Executed Successfully via Global API Cluster.`);
     }, 1500);
   };
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100 p-6 md:p-12">
-      <div className="max-w-6xl mx-auto space-y-8">
+    <main className="min-h-screen bg-slate-950 text-slate-100 p-4 md:p-8">
+      <div className="max-w-7xl mx-auto space-y-8">
         
-        {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        {/* Header & Auth Section */}
+        <header className="flex flex-col md:flex-row justify-between items-center bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl gap-4">
           <div>
-            <h1 className="text-3xl font-extrabold bg-gradient-to-r from-blue-400 via-indigo-300 to-purple-400 bg-clip-text text-transparent">
-              AI Multimodal Platform
+            <h1 className="text-3xl font-extrabold bg-gradient-to-r from-cyan-400 via-indigo-400 to-purple-500 bg-clip-text text-transparent">
+              Unified AI Multimodal Platform
             </h1>
             <p className="text-slate-400 text-sm mt-1">
-              Generate text, images, cinematic videos, and studio voice with global AI models.
+              Interact with 12+ world-class AI models powered by Supabase & Next.js App Router.
             </p>
           </div>
-          <div className="bg-slate-900 border border-slate-800 px-4 py-2 rounded-xl text-xs font-mono text-emerald-400 shadow-lg">
-            ● Global API Cluster: Online
+
+          <div>
+            {user ? (
+              <div className="flex items-center gap-4 bg-slate-800 px-4 py-2.5 rounded-xl border border-slate-700 shadow-md">
+                <span className="text-sm text-cyan-300 font-medium">👤 {user.email}</span>
+                <button 
+                  onClick={handleSignOut}
+                  className="bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-1.5 rounded-lg transition font-semibold"
+                >
+                  Sign Out
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleSignIn} className="flex flex-wrap gap-2 items-center">
+                <input 
+                  type="email" 
+                  placeholder="Email" 
+                  value={email} 
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="bg-slate-950 border border-slate-700 px-3 py-2 rounded-xl text-sm text-white focus:outline-none focus:border-cyan-500"
+                  required
+                />
+                <input 
+                  type="password" 
+                  placeholder="Password" 
+                  value={password} 
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="bg-slate-950 border border-slate-700 px-3 py-2 rounded-xl text-sm text-white focus:outline-none focus:border-cyan-500"
+                  required
+                />
+                <button 
+                  type="submit" 
+                  disabled={authLoading}
+                  className="bg-cyan-600 hover:bg-cyan-500 text-white text-sm px-4 py-2 rounded-xl font-semibold transition shadow-lg shadow-cyan-500/20"
+                >
+                  Login
+                </button>
+                <button 
+                  type="button" 
+                  onClick={handleSignUp}
+                  disabled={authLoading}
+                  className="bg-indigo-600 hover:bg-indigo-500 text-white text-sm px-4 py-2 rounded-xl font-semibold transition shadow-lg shadow-indigo-500/20"
+                >
+                  Sign Up
+                </button>
+              </form>
+            )}
           </div>
-        </div>
+        </header>
 
-        {/* Category Tabs */}
-        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none">
-          {[
-            { id: 'chat', label: '🤖 Chat & Reasoning' },
-            { id: 'openWeights', label: '🧠 Open Weights' },
-            { id: 'image', label: '🎨 Image Gen' },
-            { id: 'video', label: '🎬 Cinematic Video' },
-            { id: 'voice', label: '🎙️ Voice Studio' }
-          ].map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => {
-                setActiveTab(tab.id);
-                const firstModel = AI_MODELS_ECOSYSTEM.find(m => m.category === tab.id);
-                if (firstModel) setSelectedModel(firstModel.slug);
-                setOutput(null);
-              }}
-              className={`px-5 py-2.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all border ${
-                activeTab === tab.id
-                  ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white border-blue-500 shadow-lg shadow-blue-500/25'
-                  : 'bg-slate-900 text-slate-400 border-slate-800 hover:bg-slate-800 hover:text-slate-200'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
+        {message && (
+          <div className="bg-slate-900 border border-cyan-500/50 p-4 rounded-xl text-center text-cyan-300 text-sm shadow-md">
+            {message}
+          </div>
+        )}
 
-        {/* Main Interface Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Interactive Testing Playground Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 bg-slate-900/60 border border-slate-800 p-6 rounded-3xl shadow-2xl">
           
-          {/* Controls Panel */}
-          <div className="lg:col-span-5 bg-slate-900/90 border border-slate-800 rounded-2xl p-6 space-y-5 shadow-2xl">
+          {/* Controls Form */}
+          <div className="lg:col-span-5 space-y-4">
+            <h2 className="text-lg font-bold text-cyan-400 flex items-center gap-2">
+              ⚡ AI Playground Generator
+            </h2>
+            
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
-                Select AI Model
+                Choose Model for Test
               </label>
               <select
                 value={selectedModel}
                 onChange={(e) => setSelectedModel(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3.5 text-sm font-medium text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm font-medium text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500 cursor-pointer"
               >
-                {filteredModels.map(m => (
+                {AI_MODELS_ECOSYSTEM.map(m => (
                   <option key={m.slug} value={m.slug}>
-                    {m.name} ({m.provider})
+                    {m.name} ({m.provider}) - [{m.category}]
                   </option>
                 ))}
               </select>
@@ -105,68 +170,122 @@ export default function Dashboard() {
 
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
-                Enter Prompt
+                Enter Prompt / Instructions
               </label>
               <textarea
-                rows={5}
+                rows={4}
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
-                placeholder="Describe what you want to create..."
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none shadow-inner"
+                placeholder="Describe your prompt here (e.g. Write a python script for web scraping...)"
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500 resize-none shadow-inner"
               />
             </div>
 
             <button
               onClick={handleGenerate}
-              disabled={loading}
-              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg shadow-blue-500/30 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              disabled={generating}
+              className="w-full bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-slate-950 font-extrabold py-3.5 px-4 rounded-xl shadow-lg shadow-cyan-500/25 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
             >
-              {loading ? (
+              {generating ? (
                 <>
-                  <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                  Processing...
+                  <span className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin"></span>
+                  Processing Pipeline...
                 </>
               ) : (
-                'Generate Content 🚀'
+                'Run AI Generation 🚀'
               )}
             </button>
           </div>
 
           {/* Output Terminal */}
-          <div className="lg:col-span-7 bg-slate-900/90 border border-slate-800 rounded-2xl p-6 md:p-8 flex flex-col justify-between shadow-2xl min-h-[400px]">
+          <div className="lg:col-span-7 bg-slate-950 border border-slate-800 rounded-2xl p-6 flex flex-col justify-between shadow-inner min-h-[300px]">
             <div>
-              <div className="border-b border-slate-800 pb-4 mb-6 flex justify-between items-center text-xs font-bold uppercase text-slate-400">
+              <div className="border-b border-slate-800 pb-3 mb-4 flex justify-between items-center text-xs font-bold uppercase text-slate-400">
                 <span className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span> Output Terminal
+                  <span className="w-2.5 h-2.5 rounded-full bg-cyan-500 animate-pulse"></span> Live Output Terminal
                 </span>
-                <span className="text-blue-400 font-mono bg-slate-950 px-3 py-1 rounded-lg border border-slate-800">
+                <span className="text-cyan-400 font-mono bg-slate-900 px-3 py-1 rounded-lg border border-slate-800">
                   {selectedModel}
                 </span>
               </div>
 
               {output ? (
-                <div className="bg-slate-950 border border-blue-500/40 rounded-xl p-5 text-sm font-mono text-slate-100 shadow-inner">
+                <div className="bg-slate-900/90 border border-cyan-500/30 rounded-xl p-4 text-xs font-mono text-cyan-200 whitespace-pre-wrap leading-relaxed shadow-inner">
                   {output}
                 </div>
               ) : (
-                <div className="flex flex-col items-center justify-center h-52 text-slate-500 text-center">
-                  <div className="text-4xl mb-3">⚡</div>
-                  <p className="font-semibold text-slate-300">Ready for Multimodal Generation</p>
+                <div className="flex flex-col items-center justify-center h-44 text-slate-500 text-center">
+                  <div className="text-3xl mb-2">🤖</div>
+                  <p className="font-semibold text-slate-300 text-sm">Terminal Ready</p>
                   <p className="text-xs text-slate-500 mt-1 max-w-xs">
-                    Select a model, enter your prompt, and click generate to test the pipeline.
+                    Select a model, enter your prompt in the left panel, and click run to test the engine.
                   </p>
                 </div>
               )}
             </div>
 
-            <div className="border-t border-slate-800 pt-4 text-xs text-slate-500 flex justify-between items-center">
-              <span>OmniAI Multimodal Ecosystem Engine</span>
-              <span className="font-mono text-[11px]">Next.js App Router</span>
+            <div className="border-t border-slate-900 pt-3 text-[11px] text-slate-500 flex justify-between items-center font-mono">
+              <span>Secure Vercel Edge Runtime</span>
+              <span className="text-cyan-500">Connected 🟢</span>
             </div>
           </div>
-
         </div>
+
+        {/* Category Filters */}
+        <div className="space-y-4">
+          <h3 className="text-xl font-bold text-white">Explore AI Models Ecosystem</h3>
+          <div className="flex flex-wrap gap-2">
+            {['all', 'chat', 'reasoning', 'coding', 'image', 'video', 'voice'].map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setSelectedCategory(cat)}
+                className={`px-4 py-2 rounded-xl text-sm font-semibold capitalize transition ${
+                  selectedCategory === cat 
+                    ? 'bg-cyan-500 text-slate-950 shadow-lg shadow-cyan-500/30 font-bold' 
+                    : 'bg-slate-900 text-slate-400 hover:bg-slate-800 border border-slate-800'
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* AI Models Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredModels.map((model: AIModel) => (
+            <div 
+              key={model.slug}
+              className="bg-slate-900 border border-slate-800 hover:border-cyan-500/50 p-6 rounded-2xl shadow-lg transition flex flex-col justify-between group"
+            >
+              <div>
+                <div className="flex justify-between items-start mb-3">
+                  <span className="bg-slate-800 text-cyan-400 text-xs px-2.5 py-1 rounded-full font-bold uppercase tracking-wider border border-slate-700">
+                    {model.provider}
+                  </span>
+                  <span className="text-xs text-slate-500 uppercase tracking-widest font-mono">
+                    {model.category}
+                  </span>
+                </div>
+                <h3 className="text-xl font-bold text-white group-hover:text-cyan-400 transition">
+                  {model.name}
+                </h3>
+                <p className="text-slate-400 text-sm mt-2">
+                  {model.description}
+                </p>
+              </div>
+
+              <div className="mt-6 pt-4 border-t border-slate-800/80 flex justify-between items-center text-xs">
+                <span className="text-slate-400 font-medium">Use Case: <span className="text-indigo-300">{model.useCase}</span></span>
+                <span className="bg-slate-950 text-slate-300 px-2 py-1 rounded border border-slate-800 font-mono">
+                  {model.family}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+
       </div>
     </main>
   );
-}
+                }
