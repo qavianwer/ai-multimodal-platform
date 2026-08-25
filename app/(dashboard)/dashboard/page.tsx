@@ -1,18 +1,31 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
+import { useFeaturePermissions } from '@/hooks/useFeaturePermissions';
 
-export default function DashboardPage() {
+export default function UserDashboardPage() {
+  const { 
+    profile, 
+    loading: permissionsLoading, 
+    credits, 
+    role, 
+    canUseCamera, 
+    canRecordVoice, 
+    canUploadFiles, 
+    isAdminOrOwner,
+    hasProPrivileges 
+  } = useFeaturePermissions();
+
   const [userId, setUserId] = useState('');
   const [modelSlug, setModelSlug] = useState('gpt-4o');
   const [category, setCategory] = useState('chat');
   const [prompt, setPrompt] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [executing, setExecuting] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState('');
-  const [remainingCredits, setRemainingCredits] = useState<number | null>(null);
+  const [dynamicCredits, setDynamicCredits] = useState<number | null>(null);
 
-  // Comprehensive multi-model ecosystem mapping across all model families
   const availableModels = [
     { slug: 'gpt-4o', name: 'GPT-4o (OpenAI)', category: 'chat', provider: 'openai' },
     { slug: 'claude-3-5-sonnet', name: 'Claude 3.5 Sonnet (Anthropic)', category: 'chat', provider: 'anthropic' },
@@ -36,7 +49,8 @@ export default function DashboardPage() {
       setError('Please enter your Supabase User ID.');
       return;
     }
-    setLoading(true);
+
+    setExecuting(true);
     setError('');
     setResult(null);
 
@@ -57,128 +71,200 @@ export default function DashboardPage() {
 
       setResult(data.data);
       if (data.remaining_credits !== undefined) {
-        setRemainingCredits(data.remaining_credits);
+        setDynamicCredits(data.remaining_credits);
       }
     } catch (err: any) {
       setError(err.message);
     } finally {
-      setLoading(false);
+      setExecuting(false);
     }
   };
 
+  if (permissionsLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-gray-950 text-white font-sans">
+        Loading AI Studio Dashboard...
+      </div>
+    );
+  }
+
+  const activeCredits = dynamicCredits !== null ? dynamicCredits : credits;
+
   return (
-    <div style={{ padding: '2rem', maxWidth: '900px', margin: '0 auto', fontFamily: 'system-ui, sans-serif', color: '#111' }}>
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #eaeaea', paddingBottom: '1rem', marginBottom: '2rem' }}>
-        <h1 style={{ fontSize: '1.75rem', fontWeight: 'bold' }}>Multi-Model AI Ecosystem Dashboard</h1>
-        {remainingCredits !== null && (
-          <div style={{ background: '#0070f3', color: '#fff', padding: '0.5rem 1rem', borderRadius: '8px', fontWeight: 'bold' }}>
-            Credits Left: {remainingCredits}
-          </div>
-        )}
-      </header>
-
-      <form onSubmit={handleGenerate} style={{ display: 'grid', gap: '1.25rem', background: '#f9f9f9', padding: '1.5rem', borderRadius: '12px', border: '1px solid #eaeaea' }}>
-        <div>
-          <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.5rem' }}>Supabase User ID:</label>
-          <input 
-            type="text" 
-            value={userId} 
-            onChange={(e) => setUserId(e.target.value)} 
-            placeholder="Paste your user UUID from Supabase profiles table"
-            style={{ padding: '0.75rem', width: '100%', borderRadius: '6px', border: '1px solid #ccc', fontSize: '1rem' }}
-            required
-          />
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+    <div className="min-h-screen bg-gray-950 text-white p-8">
+      <div className="max-w-6xl mx-auto">
+        
+        {/* Header Section */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 bg-gray-900 border border-gray-800 p-6 rounded-2xl shadow-xl gap-4">
           <div>
-            <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.5rem' }}>Select AI Model / Engine:</label>
-            <select 
-              value={modelSlug} 
-              onChange={(e) => setModelSlug(e.target.value)}
-              style={{ padding: '0.75rem', width: '100%', borderRadius: '6px', border: '1px solid #ccc', fontSize: '1rem', background: '#fff' }}
-            >
-              {availableModels.map((m) => (
-                <option key={m.slug} value={m.slug}>{m.name}</option>
-              ))}
-            </select>
+            <h1 className="text-3xl font-bold">AI Creative Studio Dashboard</h1>
+            <p className="text-gray-400 mt-1">Welcome back, <span className="text-white font-semibold">{profile?.full_name || profile?.email || 'Creator'}</span></p>
           </div>
-
-          <div>
-            <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.5rem' }}>Modality Category:</label>
-            <select 
-              value={category} 
-              onChange={(e) => setCategory(e.target.value)}
-              style={{ padding: '0.75rem', width: '100%', borderRadius: '6px', border: '1px solid #ccc', fontSize: '1rem', background: '#fff' }}
-            >
-              <option value="chat">Chat / Reasoning</option>
-              <option value="coding">Coding & Math</option>
-              <option value="image">Image Generation</option>
-              <option value="video">Cinematic Video</option>
-              <option value="audio">Voice / Audio</option>
-            </select>
-          </div>
-        </div>
-
-        <div>
-          <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.5rem' }}>Prompt / Production Script / Cinematic Instructions:</label>
-          <textarea 
-            value={prompt} 
-            onChange={(e) => setPrompt(e.target.value)} 
-            rows={4} 
-            style={{ padding: '0.75rem', width: '100%', borderRadius: '6px', border: '1px solid #ccc', fontSize: '1rem' }}
-            placeholder="Enter prompt, code requirements, or camera movement tags..."
-            required
-          />
-        </div>
-
-        <button 
-          type="submit" 
-          disabled={loading} 
-          style={{ padding: '0.85rem 1.5rem', background: loading ? '#ccc' : '#0070f3', color: '#fff', border: 'none', borderRadius: '6px', cursor: loading ? 'not-allowed' : 'pointer', fontWeight: 'bold', fontSize: '1rem' }}
-        >
-          {loading ? 'Executing Multi-Model Router...' : 'Execute AI Generation'}
-        </button>
-      </form>
-
-      {error && <div style={{ background: '#ffebee', color: '#c62828', padding: '1rem', borderRadius: '6px', marginTop: '1.5rem', border: '1px solid #ffcdd2' }}>Error: {error}</div>}
-      
-      {result && (
-        <div style={{ marginTop: '2rem', background: '#fff', padding: '1.5rem', borderRadius: '12px', border: '1px solid #eaeaea', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
-          <h3 style={{ marginBottom: '1rem', borderBottom: '1px solid #eee', paddingBottom: '0.5rem' }}>Generated Output Result:</h3>
           
-          {result.output && (
-            <div style={{ background: '#f8f9fa', padding: '1rem', borderRadius: '6px', whiteSpace: 'pre-wrap', lineHeight: '1.6' }}>
-              {result.output}
+          <div className="flex items-center gap-4">
+            <div className="bg-emerald-950/60 border border-emerald-700 px-4 py-2 rounded-xl">
+              <div className="text-xs text-emerald-400 uppercase font-bold">Available Credits</div>
+              <div className="text-2xl font-mono font-extrabold text-emerald-200">{activeCredits}</div>
             </div>
-          )}
 
-          {result.imageUrl && (
-            <div style={{ textAlign: 'center', marginTop: '1rem' }}>
-              <img src={result.imageUrl} alt="Generated AI Output" style={{ maxWidth: '100%', borderRadius: '8px', border: '1px solid #ddd' }} />
-            </div>
-          )}
-
-          {result.videoUrl && (
-            <div style={{ textAlign: 'center', marginTop: '1rem' }}>
-              <video controls src={result.videoUrl} style={{ width: '100%', borderRadius: '8px', background: '#000' }} />
-            </div>
-          )}
-
-          {result.audioUrl && (
-            <div style={{ marginTop: '1rem' }}>
-              <audio controls src={result.audioUrl} style={{ width: '100%' }} />
-            </div>
-          )}
-
-          <details style={{ marginTop: '1.5rem', color: '#666', fontSize: '0.85rem' }}>
-            <summary style={{ cursor: 'pointer', fontWeight: '600' }}>View Provider Metadata Payload</summary>
-            <pre style={{ background: '#f1f3f5', padding: '0.75rem', borderRadius: '4px', overflowX: 'auto', marginTop: '0.5rem' }}>
-              {JSON.stringify(result, null, 2)}
-            </pre>
-          </details>
+            {isAdminOrOwner && (
+              <Link 
+                href="/admin" 
+                className="bg-purple-600 hover:bg-purple-500 text-white px-5 py-3 rounded-xl font-bold text-sm transition-colors shadow-lg shadow-purple-900/35"
+              >
+                Admin Panel ⚡
+              </Link>
+            )}
+          </div>
         </div>
-      )}
+
+        {/* Role & Status Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          
+          {/* Role Card */}
+          <div className="bg-gray-900 border border-gray-800 p-6 rounded-2xl">
+            <div className="text-gray-400 text-sm mb-1">Account Role</div>
+            <div className="text-xl font-bold uppercase tracking-wider text-indigo-400">{role || 'Standard'}</div>
+            <p className="text-gray-500 text-xs mt-2">
+              {hasProPrivileges ? 'You have elevated platform privileges.' : 'Standard user account level.'}
+            </p>
+          </div>
+
+          {/* Feature Permissions Card */}
+          <div className="bg-gray-900 border border-gray-800 p-6 rounded-2xl md:col-span-2">
+            <div className="text-gray-400 text-sm mb-3">Feature Access Permissions</div>
+            <div className="grid grid-cols-3 gap-4">
+              <div className={`p-3 rounded-xl border text-center ${canUseCamera ? 'bg-emerald-950/40 border-emerald-800 text-emerald-300' : 'bg-red-950/40 border-red-800 text-red-300'}`}>
+                <div className="text-xs font-semibold">Camera</div>
+                <div className="text-sm font-bold mt-1">{canUseCamera ? 'Enabled' : 'Restricted'}</div>
+              </div>
+              <div className={`p-3 rounded-xl border text-center ${canRecordVoice ? 'bg-emerald-950/40 border-emerald-800 text-emerald-300' : 'bg-red-950/40 border-red-800 text-red-300'}`}>
+                <div className="text-xs font-semibold">Voice Recording</div>
+                <div className="text-sm font-bold mt-1">{canRecordVoice ? 'Enabled' : 'Restricted'}</div>
+              </div>
+              <div className={`p-3 rounded-xl border text-center ${canUploadFiles ? 'bg-emerald-950/40 border-emerald-800 text-emerald-300' : 'bg-red-950/40 border-red-800 text-red-300'}`}>
+                <div className="text-xs font-semibold">File Uploads</div>
+                <div className="text-sm font-bold mt-1">{canUploadFiles ? 'Enabled' : 'Restricted'}</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        {/* Multimodal AI Generation Form Section */}
+        <div className="bg-gray-900 border border-gray-800 p-8 rounded-2xl shadow-xl mb-8">
+          <h2 className="text-xl font-bold mb-2">Multimodal AI Generation Engine</h2>
+          <p className="text-gray-400 text-sm mb-6">Configure parameters, select a high-performance model ecosystem, and execute generation.</p>
+
+          <form onSubmit={handleGenerate} className="space-y-6">
+            <div>
+              <label className="block text-sm font-semibold mb-2 text-gray-300">Supabase User UUID:</label>
+              <input 
+                type="text" 
+                value={userId} 
+                onChange={(e) => setUserId(e.target.value)} 
+                placeholder="Paste your user UUID from Supabase profiles table"
+                className="w-full p-3 bg-gray-950 border border-gray-800 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500"
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-semibold mb-2 text-gray-300">Select AI Model / Engine:</label>
+                <select 
+                  value={modelSlug} 
+                  onChange={(e) => setModelSlug(e.target.value)}
+                  className="w-full p-3 bg-gray-950 border border-gray-800 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500"
+                >
+                  {availableModels.map((m) => (
+                    <option key={m.slug} value={m.slug}>{m.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold mb-2 text-gray-300">Modality Category:</label>
+                <select 
+                  value={category} 
+                  onChange={(e) => setCategory(e.target.value)}
+                  className="w-full p-3 bg-gray-950 border border-gray-800 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500"
+                >
+                  <option value="chat">Chat / Reasoning</option>
+                  <option value="coding">Coding & Math</option>
+                  <option value="image">Image Generation</option>
+                  <option value="video">Cinematic Video</option>
+                  <option value="audio">Voice / Audio</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold mb-2 text-gray-300">Prompt / Production Script / Cinematic Instructions:</label>
+              <textarea 
+                value={prompt} 
+                onChange={(e) => setPrompt(e.target.value)} 
+                rows={4} 
+                className="w-full p-3 bg-gray-950 border border-gray-800 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-500"
+                placeholder="Enter prompt, code requirements, or camera movement tags..."
+                required
+              />
+            </div>
+
+            <button 
+              type="submit" 
+              disabled={executing} 
+              className={`w-full py-3.5 rounded-xl font-bold text-sm transition-colors shadow-lg ${executing ? 'bg-gray-800 text-gray-500 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-900/30'}`}
+            >
+              {executing ? 'Executing Multi-Model Router...' : 'Execute AI Generation'}
+            </button>
+          </form>
+
+          {error && (
+            <div className="mt-6 bg-red-950/60 border border-red-800 text-red-300 p-4 rounded-xl text-sm">
+              Error: {error}
+            </div>
+          )}
+
+          {result && (
+            <div className="mt-8 bg-gray-950 border border-gray-800 p-6 rounded-xl">
+              <h3 className="text-lg font-bold mb-4 border-b border-gray-800 pb-3">Generated Output Result:</h3>
+              
+              {result.output && (
+                <div className="bg-gray-900 p-4 rounded-lg whitespace-pre-wrap text-sm leading-relaxed text-gray-200">
+                  {result.output}
+                </div>
+              )}
+
+              {result.imageUrl && (
+                <div className="text-center mt-4">
+                  <img src={result.imageUrl} alt="Generated AI Output" className="max-w-full mx-auto rounded-lg border border-gray-800" />
+                </div>
+              )}
+
+              {result.videoUrl && (
+                <div className="text-center mt-4">
+                  <video controls src={result.videoUrl} className="w-full rounded-lg bg-black border border-gray-800" />
+                </div>
+              )}
+
+              {result.audioUrl && (
+                <div className="mt-4">
+                  <audio controls src={result.audioUrl} className="w-full" />
+                </div>
+              )}
+
+              <details className="mt-6 text-gray-400 text-xs">
+                <summary className="cursor-pointer font-semibold text-gray-300">View Provider Metadata Payload</summary>
+                <pre className="bg-gray-900 p-3 rounded-lg overflow-x-auto mt-2 text-gray-300 font-mono">
+                  {JSON.stringify(result, null, 2)}
+                </pre>
+              </details>
+            </div>
+          )}
+        </div>
+
+      </div>
     </div>
   );
-}
+              }
