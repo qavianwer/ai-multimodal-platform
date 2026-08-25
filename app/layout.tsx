@@ -1,9 +1,8 @@
 import './globals.css';
-import type { Metadata } from 'next';
 
-export const metadata: Metadata = {
-  title: 'OmniAI — World-Class Multimodal AI Platform',
-  description: 'Enterprise Multimodal AI Operating System powering Chat, Open Weights, Photorealistic Images, Cinematic Video, and Neural Voice Studio.',
+export const metadata = {
+  title: 'OmniAI Engine - Unified Multimodal AI Platform',
+  description: 'Interact with world-class AI models powered by Supabase & Next.js',
 };
 
 export default function RootLayout({
