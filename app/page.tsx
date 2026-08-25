@@ -1,24 +1,120 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { AI_MODELS_ECOSYSTEM, AIModel } from '@/lib/ai-models';
-import { supabase } from '@/lib/supabase/client';
+import { createClient } from '@supabase/supabase-js';
+
+// Supabase Client Initialization
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+// AI Models Ecosystem Interface & Data
+export interface AIModel {
+  slug: string;
+  name: string;
+  category: 'chat' | 'reasoning' | 'coding' | 'image' | 'video' | 'voice';
+  provider: string;
+  family: string;
+  useCase: string;
+  description: string;
+}
+
+const AI_MODELS_ECOSYSTEM: AIModel[] = [
+  {
+    slug: 'gpt-4o',
+    name: 'GPT-4o',
+    category: 'chat',
+    provider: 'OpenAI',
+    family: 'GPT',
+    useCase: 'Chat, Coding, Reasoning, Images',
+    description: 'Flagship multimodal model with high intelligence and speed.'
+  },
+  {
+    slug: 'claude-3-5-sonnet',
+    name: 'Claude 3.5 Sonnet',
+    category: 'chat',
+    provider: 'Anthropic',
+    family: 'Claude',
+    useCase: 'Writing, Coding, Analysis',
+    description: 'Advanced reasoning and exceptional coding capabilities.'
+  },
+  {
+    slug: 'gemini-1-5-pro',
+    name: 'Gemini 1.5 Pro',
+    category: 'chat',
+    provider: 'Google',
+    family: 'Gemini',
+    useCase: 'Multimodal AI, Research',
+    description: 'Massive context window with deep research and multimodal support.'
+  },
+  {
+    slug: 'grok-2',
+    name: 'Grok 2',
+    category: 'chat',
+    provider: 'xAI',
+    family: 'Grok',
+    useCase: 'Real-time information, Reasoning',
+    description: 'Real-time data integration and advanced reasoning.'
+  },
+  {
+    slug: 'deepseek-chat',
+    name: 'DeepSeek V3 / R1',
+    category: 'reasoning',
+    provider: 'DeepSeek',
+    family: 'DeepSeek',
+    useCase: 'Coding, Math, Reasoning',
+    description: 'State-of-the-art open-architecture reasoning and coding model.'
+  },
+  {
+    slug: 'llama-3-70b',
+    name: 'Llama 3 70B',
+    category: 'coding',
+    provider: 'Meta',
+    family: 'Llama',
+    useCase: 'Open-weight AI, Custom AI',
+    description: 'Powerful open-weight model family for custom deployments.'
+  },
+  {
+    slug: 'flux-schnell',
+    name: 'FLUX.1 Schnell',
+    category: 'image',
+    provider: 'BFL',
+    family: 'FLUX',
+    useCase: 'High-speed image geineration',
+    description: 'State-of-the-art open image generation model.'
+  },
+  {
+    slug: 'sora-cinematic',
+    name: 'Sora Video',
+    category: 'video',
+    provider: 'OpenAI',
+    family: 'Sora',
+    useCase: 'Cinematic video creation',
+    description: 'Generate high-fidelity realistic video scenes from text prompts.'
+  },
+  {
+    slug: 'elevenlabs-voice',
+    name: 'ElevenLabs Voice',
+    category: 'voice',
+    provider: 'ElevenLabs',
+    family: 'Audio',
+    useCase: 'Text-to-speech & Voice cloning',
+    description: 'Ultra-realistic human voice synthesis and emotional speech.'
+  }
+];
 
 export default function Dashboard() {
-  // Auth States
   const [user, setUser] = useState<any>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
   const [message, setMessage] = useState('');
 
-  // Generator States
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedModel, setSelectedModel] = useState<string>('gpt-4o');
   const [prompt, setPrompt] = useState('');
   const [output, setOutput] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
 
-  // Check Supabase Session
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
@@ -56,12 +152,10 @@ export default function Dashboard() {
     setMessage('Signed out successfully.');
   };
 
-  // Filter models based on category tab
   const filteredModels = selectedCategory === 'all' 
     ? AI_MODELS_ECOSYSTEM 
     : AI_MODELS_ECOSYSTEM.filter(m => m.category === selectedCategory);
 
-  // Handle AI Content Generation Simulation
   const handleGenerate = () => {
     if (!prompt.trim()) return;
     setGenerating(true);
@@ -83,7 +177,7 @@ export default function Dashboard() {
               Unified AI Multimodal Platform
             </h1>
             <p className="text-slate-400 text-sm mt-1">
-              Interact with 12+ world-class AI models powered by Supabase & Next.js App Router.
+              Interact with world-class AI models powered by Supabase & Next.js.
             </p>
           </div>
 
@@ -144,8 +238,6 @@ export default function Dashboard() {
 
         {/* Interactive Testing Playground Section */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 bg-slate-900/60 border border-slate-800 p-6 rounded-3xl shadow-2xl">
-          
-          {/* Controls Form */}
           <div className="lg:col-span-5 space-y-4">
             <h2 className="text-lg font-bold text-cyan-400 flex items-center gap-2">
               ⚡ AI Playground Generator
@@ -176,7 +268,7 @@ export default function Dashboard() {
                 rows={4}
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
-                placeholder="Describe your prompt here (e.g. Write a python script for web scraping...)"
+                placeholder="Describe your prompt here..."
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500 resize-none shadow-inner"
               />
             </div>
@@ -197,7 +289,6 @@ export default function Dashboard() {
             </button>
           </div>
 
-          {/* Output Terminal */}
           <div className="lg:col-span-7 bg-slate-950 border border-slate-800 rounded-2xl p-6 flex flex-col justify-between shadow-inner min-h-[300px]">
             <div>
               <div className="border-b border-slate-800 pb-3 mb-4 flex justify-between items-center text-xs font-bold uppercase text-slate-400">
@@ -218,7 +309,7 @@ export default function Dashboard() {
                   <div className="text-3xl mb-2">🤖</div>
                   <p className="font-semibold text-slate-300 text-sm">Terminal Ready</p>
                   <p className="text-xs text-slate-500 mt-1 max-w-xs">
-                    Select a model, enter your prompt in the left panel, and click run to test the engine.
+                    Select a model, enter your prompt, and click run to test.
                   </p>
                 </div>
               )}
@@ -288,4 +379,4 @@ export default function Dashboard() {
       </div>
     </main>
   );
-                }
+}
